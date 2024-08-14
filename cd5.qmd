@@ -1,0 +1,132 @@
+---
+title: "CD5 Precinct Level Results"
+format: 
+  html:
+      embed-resources: true
+      grid: 
+        body-width: 2000px
+        sidebar-width: 200px
+        margin-width: 200px
+      toc: true
+  pdf: 
+      toc: true
+
+editor: visual
+execute:
+  echo: false
+---
+
+```{r}
+#| include: false
+
+knitr::opts_chunk$set(dev = "png",
+                      dpi = 600,
+                      fig.width=10)
+
+options(tigris_use_cache = TRUE)
+library(tidyverse)
+library(tigris)
+library(sf)
+library(osmdata)
+library(stringr)
+
+# get City Ward map - from https://gisdata.mn.gov/dataset/bdry-votingdistricts
+tc <-  read_sf(dsn = "shp_bdry_votingdistricts", layer = "bdry_votingdistricts")
+cd5 <- tc |> filter(CONGDIST == 5) 
+
+cd5 |> st_drop_geometry() |> write.csv("cd5-precincts.csv")
+
+
+
+```
+
+```{python}
+import pandas as pd
+import requests
+import bs4 
+from io import StringIO
+
+cd5_pd = pd.read_csv("cd5-precincts.csv")
+
+precinct_ids = []
+
+for c in cd5_pd.COUNTYCODE.unique():
+  url = f'https://electionresults.sos.mn.gov/Select/Precinct/Index?ErsElectionId=169&Id=county&CountyId={c}&show=Go'
+  print(url)
+  html = requests.get(url)
+  bs_obj = bs4.BeautifulSoup(html.text)
+  for i in bs_obj.findAll("option"):
+    precinct_ids.append([c,i["value"],i.get_text()])
+
+precinct_id_df = pd.DataFrame(precinct_ids, columns = ['county','id', 'precinct']) 
+```
+
+```{python}
+
+
+list_of_dfs = list()
+
+for index, row in precinct_id_df[0:3].iterrows():
+  c,p=row["county"],row["id"]
+  url = f'https://electionresults.sos.mn.gov/results/Index?ErsElectionId=169&CountyId={c}&DistrictId=&Scenario=Precincts&selectprecincts={p}&show=Show+Selected+Precincts'
+  print(url)
+  html = requests.get(url)
+  bs_obj = bs4.BeautifulSoup(html.text)
+  tables = bs_obj.findAll('table') 
+  for table in tables:
+      df = pd.read_html(StringIO(str(table)))
+      if len(df) != 0 and ('Republican', 'Democratic-Farmer-Labor') in df[0].columns:
+        df0 = df[0]
+        print(df0.Candidate.values)
+        if "Ilhan Omar" in df0.Candidate.values: # get rid of Senate / other races
+          df0.columns = df0.columns.droplevel(0)
+          df0 = df0[df0.Candidate != "Dalia Al-Aqidi"]
+          # get rid of republican (should be better way?)
+          df0["Precinct"] = row["precinct"]
+          list_of_dfs.append(df0) 
+  
+main_df = pd.concat(list_of_dfs)
+print(main_df)
+
+main_df.to_csv("election-results.csv")
+```
+
+```{r}
+
+```
+
+```         
+```
+
+```{r}
+
+```
+
+```         
+for n in range(1,68):
+    for ab in ['A','B']:
+        url = f'https://electionresults.sos.mn.gov/results/Index?ErsElectionId=162&scenario=StateRepresentativePnp&DistrictCode={n}{ab}&show=Go'
+        print(url)
+        html = requests.get(url)
+        bs_obj = bs4.BeautifulSoup(html.text,"lxml")
+        tables = bs_obj.findAll('table') 
+        for table in tables:
+            df = pd.read_html(StringIO(str(table)))
+            if len(df) != 0 and 'Democratic-Farmer-Labor' in df[0].columns: 
+                df[0]["District"] = str(n)+ab
+                list_of_dfs.append(df[0]) 
+
+print(list_of_dfs)
+
+main_df = pd.concat(list_of_dfs)
+print(main_df)
+
+main_df.to_csv("election-results.csv")
+```
+
+```         
+```
+
+```{r}
+
+```
