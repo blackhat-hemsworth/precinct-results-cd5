@@ -17,6 +17,13 @@ execute:
 ---
 
 ```{python}
+#| code-summary: "Setting python global variables"
+
+import pandas as pd
+import requests
+import bs4 
+from io import StringIO
+
 # global variables -- change for future
 # v1 of this does manually remove the hotly contested CD5 republican race
 # could be configured in some way here in the future 
@@ -29,18 +36,19 @@ relevant_candidate = "Ilhan Omar"
 
 ```{r}
 #| include: false
+#| code-summary: "importing data, saving csv to pass to python"
 
 knitr::opts_chunk$set(dev = "png",
                       dpi = 600,
                       fig.width=10)
 
 #options(tigris_use_cache = TRUE)
+#library(tigris)
 library(tidyverse)
 library(janitor)
-#library(tigris)
 library(sf)
 library(osmdata)
-#library(stringr)
+library(stringr)
 library(fuzzyjoin)
 library(plotly)
 
@@ -49,14 +57,10 @@ tc <-  read_sf(dsn = "shp_bdry_votingdistricts", layer = "bdry_votingdistricts")
 cd5 <- tc |> filter(CONGDIST == 5) 
 
 cd5 |> st_drop_geometry() |> write.csv("cd5-precincts.csv")
-
 ```
 
 ```{python}
-import pandas as pd
-import requests
-import bs4 
-from io import StringIO
+#| code-summary: "getting all of the URL precinct values from multiselect for relevant counties"
 
 cd5_pd = pd.read_csv("cd5-precincts.csv")
 
@@ -74,7 +78,7 @@ precinct_id_df = pd.DataFrame(precinct_ids, columns = ['county','id', 'precinct'
 ```
 
 ```{python}
-
+#| code-summary: "getting all tables mentioning candidate from the relevant precincts"
 
 list_of_dfs = list()
 
@@ -105,6 +109,8 @@ main_df.to_csv("election-results.csv")
 ```
 
 ```{r}
+#| code-summary: "cleaning up Sec. of State's messy precinct names & joining results back into df with geometry"
+
 results = read.csv("election-results.csv")
 
 results <- results |> mutate(Precinct_calc = Precinct |> str_replace_all("-0","-"))
@@ -129,6 +135,7 @@ results_sf <- results |> select(-X) |>
 ```
 
 ```{r}
+#| code-summary: "making a map"
 
 G <- results_sf  |> ggplot(aes(fill = percent_ilhan_omar, geometry = geometry, 
                                text = paste0(percent_ilhan_omar,"% - ",precinct_calc))) +
@@ -142,13 +149,10 @@ ggsave("ilhan-map.png", bg = "white")
 ```
 
 ```{r}
+#| code-summary: "making is interactive"
 
 p <- ggplotly(G , tooltip = "text", width =1200, height=600) |>
      style(hoveron = "fills", textposition="right") 
 
 htmlwidgets::saveWidget(as_widget(p), "ilhan-map.html")
-```
-
-```{r}
-
 ```
