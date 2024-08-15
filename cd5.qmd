@@ -149,10 +149,25 @@ ggsave("ilhan-map.png", bg = "white")
 ```
 
 ```{r}
-#| code-summary: "making is interactive"
+#| code-summary: "making it interactive"
 
 p <- ggplotly(G , tooltip = "text", width =1200, height=600) |>
      style(hoveron = "fills", textposition="right") 
 
 htmlwidgets::saveWidget(as_widget(p), "ilhan-map.html")
+```
+
+```{r}
+#| include: false
+
+
+results_sf |> group_by(mnsendist) |> 
+              summarise(t_samuels = sum(totals_don_samuels),
+                        t_ilhan = sum(totals_ilhan_omar),
+                        total =sum(totals_don_samuels, totals_ilhan_omar,
+                                   totals_nate_schluter, totals_abena_a_mc_kenzie),
+                        pct_ilhan = t_ilhan / total,
+                        pct_samuels = t_samuels / total
+                        ) |> 
+              arrange(pct_ilhan)
 ```
